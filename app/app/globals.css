@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+/* ── Agentica Pro Palette ────────────────────────────────────────────────── */
+:root {
+  --violet:   #5B21B6;
+  --violet-light: #7C3AED;
+  --rose:     #E11D48;
+  --emerald:  #10B981;
+  --muted:    #64748b;
+
+  --bg-primary:     #f8f9fc;
+  --bg-secondary:   #f1f4f9;
+  --bg-card:        #ffffff;
+  --bg-sidebar:     #0f0f14;
+  --text-primary:   #0f172a;
+  --text-secondary: #64748b;
+  --border:         #e2e8f0;
+  --ring:           #5B21B6;
+}
+
+.dark {
+  --bg-primary:     #0d0d12;
+  --bg-secondary:   #111118;
+  --bg-card:        #16161d;
+  --bg-sidebar:     #0a0a0f;
+  --text-primary:   #f1f5f9;
+  --text-secondary: #94a3b8;
+  --border:         #1e1e2e;
+  --ring:           #7C3AED;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-geist-sans), 'Inter', Arial, sans-serif;
+  transition: background 0.2s, color 0.2s;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+.dark ::-webkit-scrollbar-thumb { background: #1e1e2e; }
+::-webkit-scrollbar-thumb:hover { background: #7C3AED; }
+
+/* Focus ring */
+*:focus-visible {
+  outline: 2px solid #7C3AED;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #5B21B6, #E11D48);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Animated border — violet → rose → violet */
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50%       { background-position: 100% 50%; }
+}
+.animated-border {
+  background: linear-gradient(135deg, #5B21B6, #E11D48, #7C3AED, #5B21B6);
+  background-size: 300% 300%;
+  animation: gradientShift 4s ease infinite;
+}
