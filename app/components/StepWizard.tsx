@@ -44,6 +44,7 @@ export default function StepWizard({ onGenerated }: Props) {
   const [baseUrl, setBaseUrl] = useState('')
   const [email, setEmail] = useState('')
   const [apiToken, setApiToken] = useState('')
+  const [projectKey, setProjectKey] = useState('')
   const [sourceStatus, setSourceStatus] = useState<ConnectionStatus>('idle')
   const [sourceMsg, setSourceMsg] = useState('')
   const [sourceConn, setSourceConn] = useState<SourceConnection | null>(null)
@@ -82,6 +83,7 @@ export default function StepWizard({ onGenerated }: Props) {
         setBaseUrl(conn.baseUrl || '')
         setEmail(conn.email || '')
         setApiToken(conn.apiToken || '')
+        setProjectKey(conn.projectKey || '')
         setSourceStatus('success')
         setSourceMsg('Restored from previous session')
       }
@@ -126,7 +128,7 @@ export default function StepWizard({ onGenerated }: Props) {
 
   async function testSource() {
     setSourceStatus('testing')
-    const conn = { type: sourceType, baseUrl, email, apiToken, projectKey: 'ATP' }
+    const conn = { type: sourceType, baseUrl, email, apiToken, projectKey: projectKey.trim() || 'ATP' }
     try {
       const res = await fetch('/api/test-connection', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'source', connection: conn }) })
       const data = await res.json()
@@ -279,29 +281,41 @@ export default function StepWizard({ onGenerated }: Props) {
         </StepCard>
       )}
 
-      {/* Step 2: Source (Jira) Connection */}
+      {/* Step 2: Source Connection */}
       {currentStep === 2 && (
         <StepCard
           step={2}
           title="Connect your Source"
-          description="Connect Jira, ADO, or X-Ray to fetch your ticket data."
+          description="Connect Jira or Azure DevOps to fetch your ticket / work item data."
           icon={<Database className="w-5 h-5" style={{ color: '#64748b' }} />}
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Field label="Platform">
-              <select value={sourceType} onChange={e => setSourceType(e.target.value as SourceType)} className={selectCls}>
-                <option value="jira">Jira</option>
+              <select value={sourceType} onChange={e => { setSourceType(e.target.value as SourceType); setSourceStatus('idle'); setSourceMsg('') }} className={selectCls}>
+                <option value="jira">Jira (Cloud / Server)</option>
                 <option value="ado">Azure DevOps</option>
-                <option value="xray">X-Ray</option>
+                <option value="xray">X-Ray (Jira)</option>
               </select>
             </Field>
-            <Field label="Base URL">
-              <input value={baseUrl} onChange={e => setBaseUrl(e.target.value)} placeholder="https://yourorg.atlassian.net" className={inputCls} />
+            <Field label={sourceType === 'ado' ? 'Organization URL' : 'Base URL'}>
+              <input
+                value={baseUrl}
+                onChange={e => setBaseUrl(e.target.value)}
+                placeholder={sourceType === 'ado' ? 'https://dev.azure.com/yourorg' : 'https://yourorg.atlassian.net'}
+                className={inputCls}
+              />
             </Field>
-            <Field label="Email">
-              <input value={email} onChange={e => setEmail(e.target.value)} placeholder="you@company.com" className={inputCls} />
-            </Field>
-            <Field label="API Token">
+            {sourceType !== 'ado' && (
+              <Field label="Email">
+                <input value={email} onChange={e => setEmail(e.target.value)} placeholder="you@company.com" className={inputCls} />
+              </Field>
+            )}
+            {sourceType === 'ado' && (
+              <Field label="Project Name">
+                <input value={projectKey} onChange={e => setProjectKey(e.target.value)} placeholder="MyProject" className={inputCls} />
+              </Field>
+            )}
+            <Field label={sourceType === 'ado' ? 'Personal Access Token (PAT)' : 'API Token'}>
               <input type="password" value={apiToken} onChange={e => setApiToken(e.target.value)} placeholder="••••••••••••" className={inputCls} />
             </Field>
           </div>
@@ -358,7 +372,7 @@ export default function StepWizard({ onGenerated }: Props) {
               value={ticketId}
               onChange={e => setTicketId(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && fetchTicket()}
-              placeholder="e.g. ATP-2"
+              placeholder={sourceConn?.type === 'ado' ? 'e.g. 1234' : 'e.g. ATP-2'}
               className={cn(inputCls, 'flex-1')}
             />
             <button onClick={fetchTicket} disabled={fetchingTicket || !ticketId.trim()} className={primaryBtn}

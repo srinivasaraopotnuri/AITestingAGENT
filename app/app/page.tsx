@@ -117,7 +117,7 @@ function DashboardView({ onStart }: { onStart: () => void }) {
       </div>
 
       {/* Bold Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
         <StatCard
           label="Jira Project"
           value="ATP"
@@ -127,6 +127,16 @@ function DashboardView({ onStart }: { onStart: () => void }) {
           accent="#7C3AED"
           gradient="linear-gradient(135deg, #5B21B6 0%, #7C3AED 100%)"
           sparkline={[40,55,45,60,50,70,65,80,72,88]}
+        />
+        <StatCard
+          label="Azure DevOps"
+          value="ADO"
+          sub="Work Item Tracking"
+          badge="+Connected"
+          badgeColor="#10B981"
+          accent="#0078D4"
+          gradient="linear-gradient(135deg, #003f7f 0%, #0078D4 100%)"
+          sparkline={[30,45,40,55,50,65,60,75,70,85]}
         />
         <StatCard
           label="Tickets Ready"

@@ -1,6 +1,6 @@
 'use client'
 
-import { LayoutDashboard, Sparkles, History, Settings, ChevronLeft, ChevronRight } from 'lucide-react'
+import { LayoutDashboard, Sparkles, History, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -14,7 +14,6 @@ const NAV_ITEMS = [
   { key: 'dashboard', label: 'Dashboard',    icon: LayoutDashboard },
   { key: 'generate',  label: 'Generate Plan', icon: Sparkles },
   { key: 'history',   label: 'History',       icon: History },
-  { key: 'settings',  label: 'Settings',      icon: Settings },
 ]
 
 export default function Sidebar({ activeNav, onNav, collapsed, onToggle }: Props) {

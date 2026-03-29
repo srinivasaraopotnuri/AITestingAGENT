@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { testJiraConnection } from '@/lib/jira'
+import { testADOConnection } from '@/lib/ado'
 import type { SourceConnection, LLMConnection } from '@/types'
 
 export async function POST(req: NextRequest) {
@@ -9,11 +10,15 @@ export async function POST(req: NextRequest) {
 
     if (type === 'source') {
       const src = connection as SourceConnection
-      if (src.type === 'jira') {
+      if (src.type === 'jira' || src.type === 'xray') {
         const result = await testJiraConnection(src)
         return NextResponse.json(result)
       }
-      return NextResponse.json({ ok: false, message: 'ADO / X-Ray coming soon' })
+      if (src.type === 'ado') {
+        const result = await testADOConnection(src)
+        return NextResponse.json(result)
+      }
+      return NextResponse.json({ ok: false, message: 'Unknown source type' })
     }
 
     if (type === 'llm') {
