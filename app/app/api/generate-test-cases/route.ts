@@ -10,8 +10,9 @@ export async function POST(req: NextRequest) {
 
     const prompt = buildTestCasePrompt(source, ticketFields, manualInput, additionalContext, count)
 
-    // First attempt (callLLM picks provider-appropriate limit: 4k for Groq, 8k for others)
-    let raw = await callLLM(prompt, llmConnection, { temperature: 0.4 })
+    // Each Gherkin test case needs ~500–700 tokens; give enough headroom for all cases
+    const tokenBudget = Math.min(8192, Math.max(4096, count * 700))
+    let raw = await callLLM(prompt, llmConnection, { temperature: 0.4, maxTokens: tokenBudget })
     let parsed: { cases: TestCase[]; suggestions: AISuggestion[] }
 
     try {

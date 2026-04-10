@@ -1,8 +1,8 @@
 import Groq from 'groq-sdk'
 import type { LLMConnection } from '@/types'
 
-// Groq free tier has tight TPM limits; other providers can handle much more
-const MAX_TOKENS_GROQ = 4000
+// Groq supports up to 8192 output tokens on llama-3.3-70b-versatile (free tier)
+const MAX_TOKENS_GROQ = 8192
 const MAX_TOKENS_DEFAULT = 8192
 
 export async function callLLM(

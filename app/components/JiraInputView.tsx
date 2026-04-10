@@ -48,6 +48,7 @@ export default function JiraInputView({ llmConn, sourceConn, onSourceConnChange,
   const [additionalCtx, setAdditionalCtx] = useState('')
 
   // Step 3 — Generate
+  const [caseCount, setCaseCount]     = useState(10)
   const [generating, setGenerating]   = useState<'plan'|'cases'|'strategy'|null>(null)
   const [genError, setGenError]       = useState('')
   const [planResult, setPlanResult]   = useState<{ testPlan: TestPlanSections; ticketId: string; generatedAt: string } | null>(null)
@@ -99,7 +100,7 @@ export default function JiraInputView({ llmConn, sourceConn, onSourceConnChange,
         saveToHistory({ id: crypto.randomUUID(), ...data, llmProvider: llmConn.provider, llmModel: llmConn.model, ticketSummary: ticketFields.summary })
       } else if (type === 'cases') {
         const res = await fetch('/api/generate-test-cases', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ source: 'ticket', ticketFields, additionalContext: additionalCtx, llmConnection: llmConn }) })
+          body: JSON.stringify({ source: 'ticket', ticketFields, additionalContext: additionalCtx, llmConnection: llmConn, count: caseCount }) })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Generation failed')
         setCasesResult(data.cases)
@@ -292,11 +293,22 @@ export default function JiraInputView({ llmConn, sourceConn, onSourceConnChange,
               </div>
             )}
 
+            {/* Count selector */}
+            <div className="flex items-center gap-2 mb-3">
+              <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Test Cases Count</label>
+              <select value={caseCount} onChange={e => setCaseCount(Number(e.target.value))}
+                className="rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-[#5B21B6]"
+                style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}>
+                {[5, 10, 15, 20, 25].map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>(applies to Test Cases only)</span>
+            </div>
+
             {/* Generate option cards */}
             <div className="grid grid-cols-3 gap-3 mb-6">
               {([
                 { type: 'plan' as const,     icon: ClipboardList, label: 'Test Plan',     sub: '14-section structured test plan' },
-                { type: 'cases' as const,    icon: Zap,           label: 'Test Cases',    sub: 'Detailed cases with steps & priority' },
+                { type: 'cases' as const,    icon: Zap,           label: 'Test Cases',    sub: `${caseCount} Gherkin BDD test cases` },
                 { type: 'strategy' as const, icon: Star,          label: 'Test Strategy', sub: 'High-level strategy & tools' },
               ]).map(opt => (
                 <div key={opt.type} className="rounded-xl p-4 text-center" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
