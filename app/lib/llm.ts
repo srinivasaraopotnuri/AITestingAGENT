@@ -118,25 +118,58 @@ export async function callLLM(
 
 export function parseJSON<T>(raw: string): T {
   let cleaned = raw.trim()
-  // Strip opening fence: ```json or ```JSON or just ```
-  cleaned = cleaned.replace(/^```[a-zA-Z]*\s*\n?/, '')
-  // Strip closing fence
-  cleaned = cleaned.replace(/\n?```\s*$/, '')
-  cleaned = cleaned.trim()
+  // Strip code fences: ```json ... ``` or ``` ... ```
+  cleaned = cleaned.replace(/^```[a-zA-Z]*\s*\n?/, '').replace(/\n?```\s*$/, '').trim()
 
-  // First attempt: direct parse
-  try {
-    return JSON.parse(cleaned) as T
-  } catch {
-    // Second attempt: repair truncated JSON
-    return JSON.parse(repairTruncatedJSON(cleaned)) as T
+  // Extract only the outermost JSON object (strips any preamble/epilogue text)
+  const objStart = cleaned.indexOf('{')
+  const objEnd   = cleaned.lastIndexOf('}')
+  if (objStart !== -1 && objEnd > objStart) {
+    cleaned = cleaned.slice(objStart, objEnd + 1)
   }
+
+  // Attempt 1: direct parse
+  try { return JSON.parse(cleaned) as T } catch { /* fall through */ }
+
+  // Attempt 2: fix unescaped literal newlines/tabs inside string values
+  try { return JSON.parse(sanitizeStringValues(cleaned)) as T } catch { /* fall through */ }
+
+  // Attempt 3: repair truncated JSON (missing closing brackets/braces)
+  try { return JSON.parse(repairTruncatedJSON(cleaned)) as T } catch { /* fall through */ }
+
+  // Attempt 4: sanitize + repair combined
+  try { return JSON.parse(repairTruncatedJSON(sanitizeStringValues(cleaned))) as T } catch { /* fall through */ }
+
+  // Attempt 5: extract key-value pairs manually and build a best-effort object
+  return extractKeyValues<T>(cleaned)
 }
 
 /**
- * Attempts to repair a truncated JSON string by closing open strings,
- * objects, and arrays. Handles the common case where a large LLM response
- * is cut off mid-string due to token limits.
+ * Escapes literal newlines, tabs, and bare control characters that appear
+ * inside JSON string values — a common LLM output mistake.
+ */
+function sanitizeStringValues(raw: string): string {
+  // Replace literal newline/CR/tab inside strings with their escape sequences
+  let result = ''
+  let inString = false
+  let escape = false
+  for (let i = 0; i < raw.length; i++) {
+    const c = raw[i]
+    if (escape) { escape = false; result += c; continue }
+    if (c === '\\' && inString) { escape = true; result += c; continue }
+    if (c === '"') { inString = !inString; result += c; continue }
+    if (inString) {
+      if (c === '\n') { result += '\\n'; continue }
+      if (c === '\r') { result += '\\r'; continue }
+      if (c === '\t') { result += '\\t'; continue }
+    }
+    result += c
+  }
+  return result
+}
+
+/**
+ * Closes open strings / objects / arrays in a truncated JSON string.
  */
 function repairTruncatedJSON(raw: string): string {
   const stack: string[] = []
@@ -147,10 +180,7 @@ function repairTruncatedJSON(raw: string): string {
     const c = raw[i]
     if (escape) { escape = false; continue }
     if (c === '\\' && inString) { escape = true; continue }
-    if (c === '"') {
-      inString = !inString
-      continue
-    }
+    if (c === '"') { inString = !inString; continue }
     if (!inString) {
       if (c === '{') stack.push('}')
       else if (c === '[') stack.push(']')
@@ -159,12 +189,22 @@ function repairTruncatedJSON(raw: string): string {
   }
 
   let repaired = raw
-  // Close any open string
   if (inString) repaired += '"'
-  // Close any trailing comma before closing (invalid JSON)
   repaired = repaired.replace(/,\s*$/, '')
-  // Close all open structures in reverse order
   while (stack.length) repaired += stack.pop()!
-
   return repaired
+}
+
+/**
+ * Last-resort: extract "key": "value" pairs via regex to salvage partial output.
+ */
+function extractKeyValues<T>(raw: string): T {
+  const result: Record<string, unknown> = {}
+  const pattern = /"([^"]+)"\s*:\s*("(?:[^"\\]|\\.)*"|true|false|null|-?\d+(?:\.\d+)?|\[(?:[^\[\]]|\[.*?\])*\])/g
+  let m: RegExpExecArray | null
+  while ((m = pattern.exec(raw)) !== null) {
+    try { result[m[1]] = JSON.parse(m[2]) } catch { result[m[1]] = m[2] }
+  }
+  if (Object.keys(result).length === 0) throw new Error('Could not parse LLM response as JSON')
+  return result as T
 }
