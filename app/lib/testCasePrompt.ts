@@ -18,38 +18,52 @@ export function buildTestCasePrompt(
   return `=== RICE ===
 
 ROLE:
-You are a Senior QA Engineer with 10+ years of experience in test design, BDD, and Gherkin specification writing. You specialize in identifying edge cases others miss and writing test cases that are immediately executable.
+You are a Principal QA Architect with 15+ years of experience in Functional Testing, API Testing (REST/GraphQL), UI Automation (Playwright, Selenium, Cypress), Test Design Techniques (BVA, ECP, Decision Tables, State Transition), and Performance & Security Testing basics. You design test strategies for enterprise systems in Banking, Insurance, E-commerce, and SaaS platforms.
 
 INTENT:
-I need to generate ${count} comprehensive, independently executable test cases to ensure complete coverage of the feature described below — covering happy paths, negative scenarios, boundary values, and edge cases — before release.
+Generate enterprise-grade, production-ready test cases to achieve maximum functional coverage, detect edge cases and hidden defects, ensure automation readiness, reduce production issues, and support regression and CI/CD pipelines.
 
 CONTEXT:
 - Ticket / Feature ID: ${ticketId}
-- Title: ${title || 'Not provided'}
-- User Story / Description:
+- Feature/Module: ${title || 'Not provided'}
+- Requirement Source: JIRA / PRD / User Story
+
+User Story / Description:
 ${story || 'Not provided'}
-- Acceptance Criteria:
+
+Acceptance Criteria:
 ${ac || 'Not provided'}
-${ctx ? `- Additional Context:\n${ctx}` : ''}
+
+${ctx ? `Additional Context:\n${ctx}` : ''}
 
 EXPECTED OUTPUT:
-- Exactly ${count} test cases in the "cases" array
-- Coverage must include: Functional (happy path), Negative, Edge Case, Boundary, and at least 1 Security or Integration test
-- Each test case must have 3–8 concrete steps with realistic test data — no placeholder values
-- Each test case must include a complete Gherkin BDD scenario (Given/When/Then)
-- 3–5 AI suggestions identifying gaps, missing scenarios, or risks not covered
+- Exactly ${count} test cases
+- Coverage must include:
+  - Happy path (core workflows, business logic validation)
+  - Negative scenarios (invalid inputs, system failures, error handling)
+  - Edge cases (extreme values, rare conditions)
+  - Boundary Value Analysis (min/max limits, threshold conditions)
+  - Security basics (input sanitization, unauthorized access)
+  - API validations (request/response, status codes, error responses) where applicable
+  - UI testing scenarios (layout, responsiveness, cross-browser) where applicable
+- Each test case must be: independent, clear, executable, real-world, automation-friendly
+- 3–5 AI suggestions identifying risky areas, missing requirements, and automation candidates
 
 === POT ===
 
-PARAMETERS:
-- Use ONLY the information provided above — do NOT assume undocumented features
-- Mark any unclear requirements as "[NOT SPECIFIED]" rather than guessing
-- No hallucinations — every step and expected result must be derivable from the context
+PARAMETERS (STRICT RULES):
+- Do NOT assume undocumented features
+- Use ONLY the provided input
+- Mark missing details as [NEEDS CLARIFICATION]
+- Avoid duplicate or redundant test cases
+- Include realistic validations with actual sample data values
+- Focus on business-critical flows
+- Highlight risks where applicable
 - All status values must be "Draft"
 - IDs must be sequential: TC-001, TC-002, …
 
 OUTPUT FORMAT:
-Return a valid JSON object with exactly this shape. No markdown fences, no extra text outside the JSON:
+Return ONLY a valid JSON object with exactly this shape. No markdown fences, no extra text:
 {
   "cases": [
     {
@@ -60,7 +74,7 @@ Return a valid JSON object with exactly this shape. No markdown fences, no extra
       "status": "Draft",
       "tags": ["string"],
       "preconditions": "string",
-      "testData": "string (realistic values, not placeholders)",
+      "testData": "string (realistic sample values — no placeholders like 'test123')",
       "steps": [
         { "stepNumber": 1, "action": "string", "expectedResult": "string" }
       ],
@@ -81,11 +95,22 @@ Return a valid JSON object with exactly this shape. No markdown fences, no extra
 }
 
 TASK:
-Generate ${count} test cases for the feature described in CONTEXT above.
-- The "gherkin" field must be a complete Gherkin scenario using Feature/Scenario/Given/When/Then/And/But keywords. Use \\n for line breaks. Indent each step with 4 spaces.
-- Use "Scenario Outline" with an "Examples:" table for data-driven cases where appropriate.
-- Spread coverage across types — do not generate only Functional tests.
-- Return ONLY the JSON object.`
+Generate ${count} enterprise-grade test cases for the feature described in CONTEXT above, covering:
+1. Functional Testing — core workflows and business logic
+2. Validation Testing — mandatory fields, input formats, data constraints
+3. Negative Testing — invalid inputs, system failures, error handling
+4. Edge Cases — extreme values, rare conditions
+5. Boundary Value Analysis — min/max limits, threshold conditions
+6. API Testing (if applicable) — request/response validation, status codes
+7. UI Testing — layout validation, responsiveness, cross-browser scenarios
+8. Security (basic) — input sanitization, unauthorized access attempts
+
+Gherkin rules:
+- The "gherkin" field must use Feature/Scenario/Given/When/Then/And/But keywords
+- Use \\n for line breaks, indent each step with 4 spaces
+- Use "Scenario Outline" with "Examples:" table for data-driven cases
+
+Return ONLY the JSON object.`
 }
 
 // ── AI Suggestions (standalone, for expanding an existing set) ─────────────────
