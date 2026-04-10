@@ -29,6 +29,7 @@ const LLM_MODELS: Record<LLMProvider, string[]> = {
   ],
   ollama: ['llama3', 'llama3.1', 'mistral', 'codellama', 'phi3'],
   grok: ['grok-beta', 'grok-vision-beta'],
+  openrouter: ['openai/gpt-4o', 'openai/gpt-4o-mini', 'anthropic/claude-3.5-sonnet', 'anthropic/claude-3-haiku', 'google/gemini-pro-1.5', 'meta-llama/llama-3.3-70b-instruct', 'mistralai/mistral-large', 'deepseek/deepseek-r1'],
 }
 
 export default function ConnectionPanel({ onSourceSave, onLLMSave, savedSource, savedLLM }: Props) {
@@ -75,6 +76,7 @@ export default function ConnectionPanel({ onSourceSave, onLLMSave, savedSource, 
           openai: cfg.openai?.apiKey || '',
           grok: cfg.grok?.apiKey || '',
           ollama: '',
+          openrouter: '',
         }
         setLLMApiKey(keyMap[llmProvider] || '')
         setLLMModel(LLM_MODELS[llmProvider][0])

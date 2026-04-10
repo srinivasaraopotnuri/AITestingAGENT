@@ -1,5 +1,6 @@
 import Groq from 'groq-sdk'
 import type { LLMConnection, TestPlanSections } from '@/types'
+import { parseJSON } from '@/lib/llm'
 
 export async function generateWithGroq(
   prompt: string,
@@ -11,11 +12,11 @@ export async function generateWithGroq(
     model: connection.model || 'llama-3.3-70b-versatile',
     messages: [{ role: 'user', content: prompt }],
     temperature: 0.3,
-    max_tokens: 4096,
+    max_tokens: 3000,
   })
 
   const content = completion.choices[0]?.message?.content || ''
-  return JSON.parse(content) as Partial<TestPlanSections>
+  return parseJSON<Partial<TestPlanSections>>(content)
 }
 
 export async function generateWithOllama(
@@ -37,7 +38,7 @@ export async function generateWithOllama(
   if (!response.ok) throw new Error(`Ollama error: ${response.statusText}`)
   const data = await response.json()
   const content = data.message?.content || ''
-  return JSON.parse(content) as Partial<TestPlanSections>
+  return parseJSON<Partial<TestPlanSections>>(content)
 }
 
 export async function generateWithOpenAI(
@@ -60,7 +61,7 @@ export async function generateWithOpenAI(
   if (!response.ok) throw new Error(`OpenAI error: ${response.statusText}`)
   const data = await response.json()
   const content = data.choices[0]?.message?.content || ''
-  return JSON.parse(content) as Partial<TestPlanSections>
+  return parseJSON<Partial<TestPlanSections>>(content)
 }
 
 export async function generateWithGrok(
@@ -83,5 +84,5 @@ export async function generateWithGrok(
   if (!response.ok) throw new Error(`Grok error: ${response.statusText}`)
   const data = await response.json()
   const content = data.choices[0]?.message?.content || ''
-  return JSON.parse(content) as Partial<TestPlanSections>
+  return parseJSON<Partial<TestPlanSections>>(content)
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { buildLLMPrompt } from '@/lib/template'
-import { generateWithGroq, generateWithOllama, generateWithGrok, generateWithOpenAI } from '@/lib/groq'
+import { buildLLMPrompt, TEST_PLAN_SYSTEM_PROMPT } from '@/lib/template'
+import { callLLM, parseJSON } from '@/lib/llm'
 import type { GenerateRequest, TestPlanSections } from '@/types'
 
 export async function POST(req: NextRequest) {
@@ -15,24 +15,8 @@ export async function POST(req: NextRequest) {
       ticketFields.ticketId
     )
 
-    let sections: Partial<TestPlanSections>
-
-    switch (llmConnection.provider) {
-      case 'groq':
-        sections = await generateWithGroq(prompt, llmConnection)
-        break
-      case 'ollama':
-        sections = await generateWithOllama(prompt, llmConnection)
-        break
-      case 'grok':
-        sections = await generateWithGrok(prompt, llmConnection)
-        break
-      case 'openai':
-        sections = await generateWithOpenAI(prompt, llmConnection)
-        break
-      default:
-        return NextResponse.json({ error: 'Unknown LLM provider' }, { status: 400 })
-    }
+    const raw = await callLLM(prompt, llmConnection, { systemPrompt: TEST_PLAN_SYSTEM_PROMPT })
+    const sections = parseJSON<Partial<TestPlanSections>>(raw)
 
     const testPlan: TestPlanSections = {
       ...sections,

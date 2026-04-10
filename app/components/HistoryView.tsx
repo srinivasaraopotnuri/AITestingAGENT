@@ -5,10 +5,19 @@ import { Clock, Trash2, Eye, FileText, Zap, RefreshCw } from 'lucide-react'
 import { loadHistory, deleteFromHistory, clearHistory, type HistoryEntry } from '@/lib/history'
 import TestPlanViewer from './TestPlanViewer'
 import ExportButtons from './ExportButtons'
+import TestCaseGeneratorPanel from './TestCaseGeneratorPanel'
+import type { LLMConnection, JiraTicketFields } from '@/types'
+
+function getLLMConn(): LLMConnection | null {
+  try { return JSON.parse(localStorage.getItem('atp_llm_conn') || 'null') } catch { return null }
+}
 
 export default function HistoryView() {
   const [entries, setEntries] = useState<HistoryEntry[]>([])
   const [selected, setSelected] = useState<HistoryEntry | null>(null)
+  const [llmConn, setLLMConn] = useState<LLMConnection | null>(null)
+
+  useEffect(() => { setLLMConn(getLLMConn()) }, [])
 
   function refresh() {
     setEntries(loadHistory())
@@ -33,18 +42,36 @@ export default function HistoryView() {
   }
 
   if (selected) {
+    // Build synthetic ticketFields from the saved plan so the generator panel can use it
+    const ticketFields: JiraTicketFields = {
+      ticketId: selected.ticketId,
+      summary: selected.ticketSummary || 'Test Plan',
+      userStory: selected.testPlan.objective || '',
+      prd: selected.testPlan.scope || '',
+      acceptanceCriteria: selected.testPlan.exitCriteria || '',
+      status: '',
+      priority: '',
+    }
+
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <button
             onClick={() => setSelected(null)}
-            className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-zinc-400 hover:text-gray-800 dark:hover:text-zinc-100 transition-colors font-medium"
+            className="flex items-center gap-1.5 text-sm font-medium transition-colors"
+            style={{ color: 'var(--text-secondary)' }}
           >
             ← Back to History
           </button>
           <ExportButtons testPlan={selected.testPlan} ticketId={selected.ticketId} generatedAt={selected.generatedAt} />
         </div>
         <TestPlanViewer testPlan={selected.testPlan} ticketId={selected.ticketId} generatedAt={selected.generatedAt} />
+        {llmConn && (
+          <TestCaseGeneratorPanel
+            ticketFields={ticketFields}
+            llmConnection={llmConn}
+          />
+        )}
       </div>
     )
   }

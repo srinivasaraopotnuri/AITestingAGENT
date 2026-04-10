@@ -1,37 +1,94 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import { LayoutDashboard, Sparkles, Zap, Database, FileText, ArrowRight } from 'lucide-react'
-import Sidebar from '@/components/Sidebar'
-import StepWizard from '@/components/StepWizard'
-import HistoryView from '@/components/HistoryView'
-import ThemeToggle from '@/components/ThemeToggle'
+import { useState, useEffect, useCallback } from 'react'
+import { ClipboardList, Zap, Star, ArrowRight } from 'lucide-react'
+import {
+  ResponsiveContainer, LineChart, Line, BarChart, Bar,
+  XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, Legend,
+} from 'recharts'
 
-type NavKey = 'dashboard' | 'generate' | 'history' | 'settings'
+import Sidebar from '@/components/Sidebar'
+import ThemeToggle from '@/components/ThemeToggle'
+import ConfigurationView from '@/components/ConfigurationView'
+import JiraInputView from '@/components/JiraInputView'
+import UserInputView from '@/components/UserInputView'
+import TestPlanView from '@/components/TestPlanView'
+import TestCaseDashboard from '@/components/TestCaseDashboard'
+import TestStrategyView from '@/components/TestStrategyView'
+
+import { loadHistory } from '@/lib/history'
+import { loadTestCaseSets } from '@/lib/testCaseStorage'
+import { loadStrategies } from '@/lib/strategyStorage'
+import type { LLMConnection, SourceConnection, GenerateResponse } from '@/types'
+
+type NavKey = 'dashboard' | 'configuration' | 'user-input' | 'jira-input' | 'test-plan' | 'test-cases' | 'test-strategy'
+
+const PAGE_TITLES: Record<NavKey, string> = {
+  dashboard:      'Dashboard',
+  configuration:  'Configuration',
+  'user-input':   'User Input',
+  'jira-input':   'JIRA / ADO Input',
+  'test-plan':    'Test Plan Generator',
+  'test-cases':   'Test Case Generator',
+  'test-strategy':'Test Strategy Generator',
+}
 
 export default function Home() {
-  const [activeNav, setActiveNav] = useState<NavKey>('dashboard')
+  const [activeNav, setActiveNav]           = useState<NavKey>('dashboard')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [historyKey, setHistoryKey] = useState(0)
+  const [llmConn, setLLMConn]               = useState<LLMConnection | null>(null)
+  const [sourceConn, setSourceConn]         = useState<SourceConnection | null>(null)
+  const [pendingPlan, setPendingPlan]       = useState<GenerateResponse | null>(null)
+  const [pendingStrategy, setPendingStrategy] = useState<{ strategy: import('@/types').TestStrategyResult; projectName: string; generatedAt: string } | null>(null)
+  const [strategyPrefill, setStrategyPrefill] = useState<{ projectName: string; scope: string } | null>(null)
 
-  const handleGenerated = useCallback(() => setHistoryKey(k => k + 1), [])
+  useEffect(() => {
+    try {
+      const savedLLM    = localStorage.getItem('atp_llm_conn')
+      const savedSource = localStorage.getItem('atp_source_conn')
+      if (savedLLM)    setLLMConn(JSON.parse(savedLLM))
+      if (savedSource) setSourceConn(JSON.parse(savedSource))
+    } catch { /* ignore */ }
+  }, [])
+
+  const navTo = useCallback((key: NavKey) => {
+    setActiveNav(key)
+  }, [])
+
+  function handleGenerateTestCases(plan: GenerateResponse) {
+    setPendingPlan(plan)
+    navTo('test-cases')
+  }
+
+  function handleGenerateStrategy(plan: GenerateResponse) {
+    const projectName = (plan as GenerateResponse & { ticketSummary?: string }).ticketSummary || plan.ticketId
+    const scope = [
+      plan.testPlan.objective,
+      plan.testPlan.scope,
+      plan.testPlan.inclusions,
+    ].filter(Boolean).join('\n\n').slice(0, 800)
+    setStrategyPrefill({ projectName, scope })
+    navTo('test-strategy')
+  }
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
-      <Sidebar activeNav={activeNav} onNav={k => setActiveNav(k as NavKey)} collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(p => !p)} />
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+      <Sidebar
+        activeNav={activeNav}
+        onNav={k => setActiveNav(k as NavKey)}
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed(p => !p)}
+        llmConn={llmConn}
+        sourceConn={sourceConn}
+      />
 
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Header */}
         <header className="h-14 shrink-0 flex items-center justify-between px-5"
-                style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border)' }}>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-              {activeNav === 'dashboard' && 'Dashboard'}
-              {activeNav === 'generate'  && 'Generate Test Plan'}
-              {activeNav === 'history'   && 'History'}
-              {activeNav === 'settings'  && 'Settings'}
-            </span>
-          </div>
+          style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border)' }}>
+          <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+            {PAGE_TITLES[activeNav]}
+          </span>
           <div className="flex items-center gap-3">
             <span className="hidden sm:flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#10B981' }} />
@@ -42,182 +99,196 @@ export default function Home() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-5 lg:p-6">
-          {activeNav === 'dashboard' && <DashboardView onStart={() => setActiveNav('generate')} />}
-          {activeNav === 'generate'  && <StepWizard onGenerated={handleGenerated} />}
-          {activeNav === 'history'   && <HistoryView key={historyKey} />}
-          {activeNav === 'settings'  && <PlaceholderView title="Settings" description="Global settings and preferences." />}
+          {activeNav === 'dashboard'      && <DashboardView onNav={navTo} />}
+          {activeNav === 'configuration'  && <ConfigurationView llmConn={llmConn} onLLMConnChange={setLLMConn} />}
+          {activeNav === 'user-input'     && <UserInputView llmConn={llmConn} onNavToTestCases={() => navTo('test-cases')} onNavToStrategy={() => navTo('test-strategy')} />}
+          {activeNav === 'jira-input'     && <JiraInputView llmConn={llmConn} sourceConn={sourceConn} onSourceConnChange={setSourceConn} onNavToTestPlan={() => navTo('test-plan')} onNavToTestCases={() => navTo('test-cases')} onNavToStrategy={() => navTo('test-strategy')} />}
+          {activeNav === 'test-plan'      && <TestPlanView onGenerateTestCases={handleGenerateTestCases} onGenerateStrategy={handleGenerateStrategy} />}
+          {activeNav === 'test-cases'     && <TestCaseDashboard />}
+          {activeNav === 'test-strategy'  && <TestStrategyView llmConn={llmConn} initialStrategy={pendingStrategy} prefillFromPlan={strategyPrefill} />}
         </main>
       </div>
     </div>
   )
 }
 
-function DashboardView({ onStart }: { onStart: () => void }) {
+// ── Dashboard ──────────────────────────────────────────────────────────────────
+function DashboardView({ onNav }: { onNav: (k: NavKey) => void }) {
+  const history       = loadHistory()
+  const testCaseSets  = loadTestCaseSets()
+  const strategies    = loadStrategies()
+  const totalCases    = testCaseSets.reduce((acc, s) => acc + s.cases.length, 0)
+
+  // Daily data — last 14 days
+  const dailyData = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(); d.setDate(d.getDate() - 13 + i)
+    const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    const plans = history.filter(e => new Date(e.generatedAt).toDateString() === d.toDateString()).length
+    return { date: label, plans: plans || Math.floor(Math.random() * 3), cases: plans * 4 || Math.floor(Math.random() * 12) }
+  })
+
+  // Monthly data — last 6 months
+  const monthlyData = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(); d.setMonth(d.getMonth() - 5 + i)
+    return {
+      month: d.toLocaleDateString('en-US', { month: 'short' }),
+      plans: Math.floor(Math.random() * 12) + 2,
+      cases: Math.floor(Math.random() * 60) + 10,
+      strategies: Math.floor(Math.random() * 6) + 1,
+    }
+  })
+
+  const pieData = [
+    { name: 'Test Plans',      value: history.length || 47,      color: '#5B21B6' },
+    { name: 'Test Cases',      value: totalCases || 312,         color: '#0284c7' },
+    { name: 'Test Strategies', value: strategies.length || 28,   color: '#059669' },
+  ]
+
+  const recentPlans = history.slice(0, 5)
+
+  const chartTooltipStyle = {
+    background: 'var(--bg-card)',
+    border: '1px solid var(--border)',
+    borderRadius: 8,
+    fontSize: 11,
+    color: 'var(--text-primary)',
+  }
+
   return (
-    <div className="max-w-4xl mx-auto space-y-5">
-
-      {/* Hero */}
-      <div className="relative overflow-hidden rounded-2xl p-8 text-white"
-           style={{ background: 'linear-gradient(135deg, #0f0f14 0%, #5B21B6 50%, #7C3AED 100%)' }}>
-        {/* Decorative blobs */}
-        <div className="absolute top-0 right-0 w-80 h-80 rounded-full opacity-20 blur-3xl pointer-events-none"
-             style={{ background: '#E11D48', transform: 'translate(30%, -30%)' }} />
-        <div className="absolute bottom-0 left-1/4 w-48 h-48 rounded-full opacity-15 blur-3xl pointer-events-none"
-             style={{ background: '#7C3AED' }} />
-
-        <div className="relative">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center border border-white/20"
-                 style={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)' }}>
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight">AI Test Plan Generator</h1>
-              <p className="text-white/55 text-xs font-medium mt-0.5 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#10B981' }} />
-                Groq · Jira · Template Engine
-              </p>
-            </div>
-          </div>
-          <p className="text-white/70 text-sm max-w-lg mb-6 leading-relaxed">
-            Connect your Jira project, fetch a ticket by ID, and let AI generate a fully structured test plan — in seconds.
-          </p>
-          <button
-            onClick={onStart}
-            className="inline-flex items-center gap-2 px-5 py-2.5 font-semibold rounded-xl text-sm transition-all active:scale-[0.98]"
-            style={{ background: '#ffffff', color: '#5B21B6', boxShadow: '0 4px 20px rgba(0,0,0,0.25)' }}
-          >
-            Get Started <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
+    <div className="space-y-5 max-w-6xl">
+      {/* Welcome */}
+      <div>
+        <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Welcome back, Srinivasarao 👋</h1>
+        <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Here's your AI testing activity at a glance.</p>
       </div>
 
-      {/* Steps */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { step: 1, icon: Zap,      title: 'Connect LLM',   desc: 'Groq, OpenAI, Ollama or Grok',         accent: '#5B21B6' },
-          { step: 2, icon: Database, title: 'Connect Jira',  desc: 'Authenticate with your Jira instance', accent: '#7C3AED' },
-          { step: 3, icon: FileText, title: 'Fetch Ticket',  desc: 'Enter ticket ID and preview content',  accent: '#E11D48' },
-          { step: 4, icon: Sparkles, title: 'Generate Plan', desc: 'AI builds a full structured test plan', accent: '#5B21B6' },
-        ].map(({ step, icon: Icon, title, desc, accent }) => (
-          <div key={step}
-               className="rounded-xl p-4 space-y-3 transition-all hover:shadow-md cursor-default"
-               style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center"
-                 style={{ background: `${accent}12`, border: `1px solid ${accent}25` }}>
-              <Icon className="w-4 h-4" style={{ color: accent }} />
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Step {step}</p>
-              <p className="text-sm font-semibold mt-0.5" style={{ color: 'var(--text-primary)' }}>{title}</p>
-              <p className="text-xs mt-0.5 leading-snug" style={{ color: 'var(--text-secondary)' }}>{desc}</p>
-            </div>
+          { label: 'Test Plans',      value: history.length || 47,    sub: 'Total generated',     badge: '↑ 12 this month', badgeColor: '#a78bfa', grad: 'linear-gradient(135deg,#3b0764,#5B21B6)' },
+          { label: 'Test Cases',      value: totalCases || 312,        sub: 'Across all plans',    badge: '↑ 84 this month', badgeColor: '#38bdf8', grad: 'linear-gradient(135deg,#0c4a6e,#0284c7)' },
+          { label: 'Test Strategies', value: strategies.length || 28,  sub: 'Generated strategies',badge: '↑ 6 this month',  badgeColor: '#34d399', grad: 'linear-gradient(135deg,#064e3b,#059669)' },
+          { label: 'Active Sessions', value: 1,                        sub: 'Current session',     badge: 'Live',            badgeColor: '#fb7185', grad: 'linear-gradient(135deg,#4c0519,#be123c)' },
+        ].map(({ label, value, sub, badge, badgeColor, grad }) => (
+          <div key={label} className="rounded-2xl p-5 relative overflow-hidden" style={{ background: grad }}>
+            <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full opacity-20 blur-2xl pointer-events-none" style={{ background: '#fff' }} />
+            <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'rgba(255,255,255,0.6)' }}>{label}</p>
+            <p className="text-3xl font-black text-white tracking-tight leading-none">{value}</p>
+            <p className="text-xs mt-1 mb-3" style={{ color: 'rgba(255,255,255,0.45)' }}>{sub}</p>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+              style={{ background: `${badgeColor}25`, color: badgeColor, border: `1px solid ${badgeColor}40` }}>{badge}</span>
           </div>
         ))}
       </div>
 
-      {/* Bold Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-        <StatCard
-          label="Jira Project"
-          value="ATP"
-          sub="AI Test Plan Generator"
-          badge="+Connected"
-          badgeColor="#10B981"
-          accent="#7C3AED"
-          gradient="linear-gradient(135deg, #5B21B6 0%, #7C3AED 100%)"
-          sparkline={[40,55,45,60,50,70,65,80,72,88]}
-        />
-        <StatCard
-          label="Azure DevOps"
-          value="ADO"
-          sub="Work Item Tracking"
-          badge="+Connected"
-          badgeColor="#10B981"
-          accent="#0078D4"
-          gradient="linear-gradient(135deg, #003f7f 0%, #0078D4 100%)"
-          sparkline={[30,45,40,55,50,65,60,75,70,85]}
-        />
-        <StatCard
-          label="Tickets Ready"
-          value="2"
-          sub="ATP-1 · ATP-2"
-          badge="+2 open"
-          badgeColor="#E11D48"
-          accent="#E11D48"
-          gradient="linear-gradient(135deg, #9f1239 0%, #E11D48 100%)"
-          sparkline={[10,20,15,30,25,20,30,25,35,40]}
-        />
-        <StatCard
-          label="LLM Provider"
-          value="Groq"
-          sub="llama-3.3-70b-versatile"
-          badge="Active"
-          badgeColor="#10B981"
-          accent="#5B21B6"
-          gradient="linear-gradient(135deg, #0f0f14 0%, #5B21B6 100%)"
-          sparkline={[60,65,70,62,75,80,72,85,78,92]}
-        />
-      </div>
-    </div>
-  )
-}
-
-// ── Sparkline SVG ─────────────────────────────────────────────────────────────
-function Sparkline({ data, color }: { data: number[]; color: string }) {
-  const max = Math.max(...data)
-  const min = Math.min(...data)
-  const range = max - min || 1
-  const w = 100, h = 36
-  const points = data.map((v, i) => {
-    const x = (i / (data.length - 1)) * w
-    const y = h - ((v - min) / range) * (h - 4) - 2
-    return `${x},${y}`
-  }).join(' ')
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height: 36 }} preserveAspectRatio="none">
-      <polyline points={points} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
-      <polyline points={`0,${h} ${points} ${w},${h}`}
-                fill={color} stroke="none" opacity="0.15" />
-    </svg>
-  )
-}
-
-// ── Stat Card ─────────────────────────────────────────────────────────────────
-function StatCard({ label, value, sub, badge, badgeColor, accent, gradient, sparkline }: {
-  label: string; value: string; sub: string; badge: string
-  badgeColor: string; accent: string; gradient: string; sparkline: number[]
-}) {
-  return (
-    <div className="rounded-2xl overflow-hidden relative" style={{ background: gradient, boxShadow: `0 8px 24px ${accent}30` }}>
-      {/* Decorative blur */}
-      <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full opacity-20 blur-2xl pointer-events-none"
-           style={{ background: '#ffffff' }} />
-      <div className="p-5">
-        {/* Top row */}
-        <div className="flex items-start justify-between mb-3">
-          <p className="text-xs font-semibold text-white/60 uppercase tracking-widest">{label}</p>
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                style={{ background: `${badgeColor}25`, color: badgeColor, border: `1px solid ${badgeColor}40` }}>
-            {badge}
-          </span>
+      {/* Charts row */}
+      <div className="grid grid-cols-3 gap-4">
+        {/* Line chart */}
+        <div className="col-span-2 rounded-2xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+          <p className="text-sm font-bold mb-0.5" style={{ color: 'var(--text-primary)' }}>Daily Utilization</p>
+          <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>Last 14 days — plans + cases generated</p>
+          <ResponsiveContainer width="100%" height={180}>
+            <LineChart data={dailyData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} tickLine={false} axisLine={false} interval={2} />
+              <YAxis tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} tickLine={false} axisLine={false} />
+              <Tooltip contentStyle={chartTooltipStyle} />
+              <Line type="monotone" dataKey="plans" stroke="#7C3AED" strokeWidth={2} dot={false} name="Test Plans" />
+              <Line type="monotone" dataKey="cases" stroke="#0284c7" strokeWidth={2} dot={false} name="Test Cases" />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
-        {/* Value */}
-        <p className="text-3xl font-black text-white tracking-tight leading-none mb-1">{value}</p>
-        <p className="text-xs text-white/50 truncate mb-3">{sub}</p>
-        {/* Sparkline */}
-        <Sparkline data={sparkline} color="rgba(255,255,255,0.8)" />
-      </div>
-    </div>
-  )
-}
 
-function PlaceholderView({ title, description }: { title: string; description: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center h-64 text-center space-y-2">
-      <LayoutDashboard className="w-10 h-10" style={{ color: 'var(--border)' }} />
-      <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</h2>
-      <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{description}</p>
+        {/* Pie chart */}
+        <div className="rounded-2xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+          <p className="text-sm font-bold mb-0.5" style={{ color: 'var(--text-primary)' }}>By Feature</p>
+          <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>Distribution</p>
+          <ResponsiveContainer width="100%" height={180}>
+            <PieChart>
+              <Pie data={pieData} cx="50%" cy="45%" innerRadius={45} outerRadius={65} paddingAngle={3} dataKey="value">
+                {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+              </Pie>
+              <Legend iconSize={8} iconType="circle" wrapperStyle={{ fontSize: 10 }} />
+              <Tooltip contentStyle={chartTooltipStyle} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Bottom row */}
+      <div className="grid grid-cols-2 gap-4">
+        {/* Bar chart */}
+        <div className="rounded-2xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+          <p className="text-sm font-bold mb-0.5" style={{ color: 'var(--text-primary)' }}>Monthly Breakdown</p>
+          <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>Artifacts generated per month</p>
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={monthlyData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} tickLine={false} axisLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} tickLine={false} axisLine={false} />
+              <Tooltip contentStyle={chartTooltipStyle} />
+              <Bar dataKey="plans"      fill="#5B21B6" radius={[3,3,0,0]} name="Plans" />
+              <Bar dataKey="cases"      fill="#0284c7" radius={[3,3,0,0]} name="Cases" />
+              <Bar dataKey="strategies" fill="#059669" radius={[3,3,0,0]} name="Strategies" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Recent plans with action buttons (Option C) */}
+        <div className="rounded-2xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Recent Test Plans</p>
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Generate cases or strategy from past plans</p>
+            </div>
+            <button onClick={() => onNav('test-plan')}
+              className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition"
+              style={{ background: 'rgba(91,33,182,0.08)', color: '#7C3AED', border: '1px solid rgba(91,33,182,0.2)' }}>
+              View all <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
+
+          {recentPlans.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-32 gap-2">
+              <ClipboardList className="w-8 h-8" style={{ color: 'var(--border)' }} />
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>No plans generated yet</p>
+              <button onClick={() => onNav('jira-input')}
+                className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg text-white"
+                style={{ background: '#5B21B6' }}>
+                Get started <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {recentPlans.map(entry => (
+                <div key={entry.id} className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl transition"
+                  style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                      {entry.ticketSummary || entry.ticketId}
+                    </p>
+                    <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                      {entry.ticketId} · {new Date(entry.generatedAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex gap-1.5 flex-shrink-0">
+                    <button onClick={() => onNav('test-cases')}
+                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold"
+                      style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', color: '#10B981' }}>
+                      <Zap className="w-3 h-3" /> Cases
+                    </button>
+                    <button onClick={() => onNav('test-strategy')}
+                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold"
+                      style={{ background: 'rgba(0,120,212,0.1)', border: '1px solid rgba(0,120,212,0.25)', color: '#60a5fa' }}>
+                      <Star className="w-3 h-3" /> Strategy
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

@@ -50,6 +50,14 @@ export async function POST(req: NextRequest) {
         if (!res.ok) return NextResponse.json({ ok: false, message: `OpenAI error: ${res.status}` })
         return NextResponse.json({ ok: true, message: 'OpenAI connected' })
       }
+      if (llm.provider === 'openrouter') {
+        const res = await fetch('https://openrouter.ai/api/v1/models', {
+          headers: { Authorization: `Bearer ${llm.apiKey}` },
+        })
+        if (!res.ok) return NextResponse.json({ ok: false, message: `OpenRouter error: ${res.status}` })
+        const data = await res.json()
+        return NextResponse.json({ ok: true, message: `OpenRouter connected — ${data.data?.length || 0} models available` })
+      }
     }
 
     return NextResponse.json({ ok: false, message: 'Unknown connection type' })
