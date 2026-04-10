@@ -143,8 +143,7 @@ export default function TestPlanViewer({ testPlan, ticketId, generatedAt }: Prop
   )
 }
 
-function normalizeContent(raw: unknown): string {
-  // LLM sometimes returns arrays or objects instead of strings
+export function normalizeContent(raw: unknown): string {
   let str: string
   if (typeof raw === 'string') {
     str = raw
@@ -155,13 +154,15 @@ function normalizeContent(raw: unknown): string {
   } else {
     str = JSON.stringify(raw, null, 2)
   }
+  // Convert literal \n sequences (from LLM double-escaping) to real newlines
+  str = str.replace(/\\n/g, '\n')
   return str
     .replace(/\s+(\d+)\.\s+/g, (_, n) => `\n${n}. `)
     .replace(/\s+[-•]\s+/g, '\n• ')
     .trim()
 }
 
-function FormattedContent({ content }: { content: unknown }) {
+export function FormattedContent({ content }: { content: unknown }) {
   const normalized = normalizeContent(content)
   const lines = normalized.split('\n').filter(l => l.trim() !== '')
 

@@ -6,6 +6,7 @@ import { saveStrategy, loadStrategies, deleteStrategy } from '@/lib/strategyStor
 import type { StrategyEntry } from '@/lib/strategyStorage'
 import type { LLMConnection, TestStrategyResult } from '@/types'
 import { cn } from '@/lib/utils'
+import { FormattedContent } from '@/components/TestPlanViewer'
 
 interface Props {
   llmConn: LLMConnection | null
@@ -426,33 +427,26 @@ function StrategyOutput({
       <div className="p-5 space-y-5 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
 
         <StrategySection title="Testing Objectives" accent="#5B21B6">
-          <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>{s.testingObjectives}</p>
+          <FormattedContent content={s.testingObjectives} />
         </StrategySection>
 
         <StrategySection title="Testing Types" accent="#0284c7">
           <div className="flex flex-wrap gap-2">
-            {(s.testingTypes || []).map((t, i) => (
+            {(Array.isArray(s.testingTypes) ? s.testingTypes : String(s.testingTypes || '').split(/,|\n/).filter(Boolean)).map((t, i) => (
               <span key={i} className="px-2.5 py-1 rounded-full text-xs font-semibold"
                     style={{ background: 'rgba(2,132,199,0.1)', color: '#0284c7', border: '1px solid rgba(2,132,199,0.2)' }}>
-                {t}
+                {String(t).trim()}
               </span>
             ))}
           </div>
         </StrategySection>
 
         <StrategySection title="Tools & Frameworks" accent="#059669">
-          <div className="space-y-1.5">
-            {s.toolsAndFrameworks.split(/\n|;|,/).filter(Boolean).map((t, i) => (
-              <div key={i} className="flex items-start gap-2">
-                <span className="w-1.5 h-1.5 rounded-full shrink-0 mt-1.5" style={{ background: '#059669' }} />
-                <span className="text-sm" style={{ color: 'var(--text-primary)' }}>{t.trim()}</span>
-              </div>
-            ))}
-          </div>
+          <FormattedContent content={s.toolsAndFrameworks} />
         </StrategySection>
 
         <StrategySection title="Automation Approach" accent="#7C3AED">
-          <p className="text-sm leading-relaxed mb-3" style={{ color: 'var(--text-primary)' }}>{s.automationApproach}</p>
+          <div className="mb-3"><FormattedContent content={s.automationApproach} /></div>
           <div className="space-y-2">
             {automationBars.map(({ label, pct }) => (
               <div key={label}>
@@ -469,15 +463,15 @@ function StrategyOutput({
         </StrategySection>
 
         <StrategySection title="Risk Assessment" accent="#E11D48">
-          <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>{s.riskAssessment}</p>
+          <FormattedContent content={s.riskAssessment} />
         </StrategySection>
 
         <StrategySection title="Entry / Exit Criteria" accent="#ca8a04">
-          <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>{s.entryExitCriteria}</p>
+          <FormattedContent content={s.entryExitCriteria} />
         </StrategySection>
 
         <StrategySection title="Metrics & Reporting" accent="#0284c7">
-          <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>{s.metricsAndReporting}</p>
+          <FormattedContent content={s.metricsAndReporting} />
         </StrategySection>
       </div>
     </div>
