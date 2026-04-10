@@ -97,6 +97,7 @@ export interface TestCase {
   preconditions: string
   testData: string
   steps: TestStep[]
+  gherkin?: string          // Full Gherkin scenario (Feature/Scenario/Given/When/Then)
   overallExpectedResult: string
   automationCandidate: boolean
   sourceTicketId?: string

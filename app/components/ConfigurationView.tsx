@@ -5,7 +5,7 @@ import { Zap, CheckCircle, XCircle, Loader2 } from 'lucide-react'
 import type { LLMConnection, LLMProvider, ConnectionStatus } from '@/types'
 
 const LLM_MODELS: Record<LLMProvider, string[]> = {
-  groq:        ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'],
+  groq:        ['llama-3.3-70b-versatile', 'openai/gpt-oss-120b', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'],
   openai:      ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],
   ollama:      ['gemma4:e4b', 'llama3', 'llama3.1', 'mistral', 'codellama', 'phi3'],
   grok:        ['grok-beta', 'grok-vision-beta'],

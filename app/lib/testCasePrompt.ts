@@ -15,7 +15,7 @@ export function buildTestCasePrompt(
   const ctx       = source === 'ticket' ? additionalContext             : manualInput?.additionalContext
   const ticketId  = source === 'ticket' ? (ticketFields?.ticketId || 'MANUAL') : 'MANUAL'
 
-  return `You are a senior QA engineer. Generate ${count} detailed test cases for the following feature.
+  return `You are a senior QA engineer. Generate ${count} detailed test cases in Gherkin BDD format for the following feature.
 
 TICKET / FEATURE ID: ${ticketId}
 TITLE: ${title || 'Not provided'}
@@ -43,6 +43,7 @@ Return a valid JSON object with exactly this shape (no markdown fences, no extra
       "steps": [
         { "stepNumber": 1, "action": "string", "expectedResult": "string" }
       ],
+      "gherkin": "Feature: <feature name>\\n\\n  Scenario: <scenario title>\\n    Given <precondition>\\n    When <action>\\n    Then <expected result>\\n    And <additional assertion>",
       "overallExpectedResult": "string",
       "automationCandidate": true,
       "sourceTicketId": "${ticketId}"
@@ -62,6 +63,8 @@ Rules:
 - Generate exactly ${count} test cases in the "cases" array
 - Spread types: include Functional, Negative, Edge Case, and at minimum 1 Boundary test
 - Each test case must have 3–8 detailed steps with concrete actions and expected results
+- The "gherkin" field must be a complete Gherkin scenario using Feature/Scenario/Given/When/Then/And/But keywords. Use \\n for line breaks. Each step on its own line with 4-space indent.
+- Use "Scenario Outline" with "Examples:" table for data-driven cases where appropriate
 - testData must contain realistic sample values, not placeholders
 - Generate 3–5 AI suggestions in the "suggestions" array for missing scenarios, edge cases, or gaps
 - IDs must be sequential: TC-001, TC-002, …

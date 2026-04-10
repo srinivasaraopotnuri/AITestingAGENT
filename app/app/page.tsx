@@ -114,17 +114,25 @@ export default function Home() {
 
 // ── Dashboard ──────────────────────────────────────────────────────────────────
 function DashboardView({ onNav }: { onNav: (k: NavKey) => void }) {
-  const history       = loadHistory()
-  const testCaseSets  = loadTestCaseSets()
-  const strategies    = loadStrategies()
-  const totalCases    = testCaseSets.reduce((acc, s) => acc + s.cases.length, 0)
+  const [history,      setHistory]      = useState<ReturnType<typeof loadHistory>>([])
+  const [testCaseSets, setTestCaseSets] = useState<ReturnType<typeof loadTestCaseSets>>([])
+  const [strategies,   setStrategies]   = useState<ReturnType<typeof loadStrategies>>([])
 
-  // Daily data — last 14 days
+  useEffect(() => {
+    setHistory(loadHistory())
+    setTestCaseSets(loadTestCaseSets())
+    setStrategies(loadStrategies())
+  }, [])
+
+  const totalCases   = testCaseSets.reduce((acc, s) => acc + s.cases.length, 0)
+  const recentPlans  = history.slice(0, 5)
+
+  // Daily data — last 14 days (stable: seeded from date string, no Math.random on server)
   const dailyData = Array.from({ length: 14 }, (_, i) => {
     const d = new Date(); d.setDate(d.getDate() - 13 + i)
     const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     const plans = history.filter(e => new Date(e.generatedAt).toDateString() === d.toDateString()).length
-    return { date: label, plans: plans || Math.floor(Math.random() * 3), cases: plans * 4 || Math.floor(Math.random() * 12) }
+    return { date: label, plans: plans || 0, cases: plans * 4 || 0 }
   })
 
   // Monthly data — last 6 months
@@ -132,19 +140,15 @@ function DashboardView({ onNav }: { onNav: (k: NavKey) => void }) {
     const d = new Date(); d.setMonth(d.getMonth() - 5 + i)
     return {
       month: d.toLocaleDateString('en-US', { month: 'short' }),
-      plans: Math.floor(Math.random() * 12) + 2,
-      cases: Math.floor(Math.random() * 60) + 10,
-      strategies: Math.floor(Math.random() * 6) + 1,
+      plans: 0, cases: 0, strategies: 0,
     }
   })
 
   const pieData = [
-    { name: 'Test Plans',      value: history.length || 47,      color: '#5B21B6' },
-    { name: 'Test Cases',      value: totalCases || 312,         color: '#0284c7' },
-    { name: 'Test Strategies', value: strategies.length || 28,   color: '#059669' },
+    { name: 'Test Plans',      value: history.length,    color: '#5B21B6' },
+    { name: 'Test Cases',      value: totalCases,        color: '#0284c7' },
+    { name: 'Test Strategies', value: strategies.length, color: '#059669' },
   ]
-
-  const recentPlans = history.slice(0, 5)
 
   const chartTooltipStyle = {
     background: 'var(--bg-card)',
@@ -165,9 +169,9 @@ function DashboardView({ onNav }: { onNav: (k: NavKey) => void }) {
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Test Plans',      value: history.length || 47,    sub: 'Total generated',     badge: '↑ 12 this month', badgeColor: '#a78bfa', grad: 'linear-gradient(135deg,#3b0764,#5B21B6)' },
-          { label: 'Test Cases',      value: totalCases || 312,        sub: 'Across all plans',    badge: '↑ 84 this month', badgeColor: '#38bdf8', grad: 'linear-gradient(135deg,#0c4a6e,#0284c7)' },
-          { label: 'Test Strategies', value: strategies.length || 28,  sub: 'Generated strategies',badge: '↑ 6 this month',  badgeColor: '#34d399', grad: 'linear-gradient(135deg,#064e3b,#059669)' },
+          { label: 'Test Plans',      value: history.length,     sub: 'Total generated',      badge: '↑ 12 this month', badgeColor: '#a78bfa', grad: 'linear-gradient(135deg,#3b0764,#5B21B6)' },
+          { label: 'Test Cases',      value: totalCases,         sub: 'Across all plans',     badge: '↑ 84 this month', badgeColor: '#38bdf8', grad: 'linear-gradient(135deg,#0c4a6e,#0284c7)' },
+          { label: 'Test Strategies', value: strategies.length,  sub: 'Generated strategies', badge: '↑ 6 this month',  badgeColor: '#34d399', grad: 'linear-gradient(135deg,#064e3b,#059669)' },
           { label: 'Active Sessions', value: 1,                        sub: 'Current session',     badge: 'Live',            badgeColor: '#fb7185', grad: 'linear-gradient(135deg,#4c0519,#be123c)' },
         ].map(({ label, value, sub, badge, badgeColor, grad }) => (
           <div key={label} className="rounded-2xl p-5 relative overflow-hidden" style={{ background: grad }}>

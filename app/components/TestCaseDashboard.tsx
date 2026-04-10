@@ -439,6 +439,8 @@ export default function TestCaseDashboard() {
               {expandedId === tc.id && (
                 <div className="px-6 py-4 space-y-4"
                      style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)' }}>
+
+                  {/* Meta row */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                     {tc.preconditions && (
                       <div>
@@ -459,7 +461,36 @@ export default function TestCaseDashboard() {
                       </div>
                     )}
                   </div>
-                  {tc.steps.length > 0 && (
+
+                  {/* Gherkin block (shown when available) */}
+                  {tc.gherkin ? (
+                    <div>
+                      <p className="text-xs font-semibold mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}>
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ background: 'rgba(5,150,105,0.12)', color: '#059669', border: '1px solid rgba(5,150,105,0.25)' }}>Gherkin</span>
+                        BDD Scenario
+                      </p>
+                      <pre className="rounded-xl p-4 text-xs leading-6 overflow-x-auto font-mono"
+                           style={{ background: '#0d1117', border: '1px solid rgba(255,255,255,0.08)', color: '#e6edf3' }}>
+                        {tc.gherkin.split('\n').map((line, i) => {
+                          const kw = line.match(/^\s*(Feature:|Scenario:|Scenario Outline:|Given |When |Then |And |But |Examples:)/)
+                          const colors: Record<string, string> = {
+                            'Feature:': '#ff7b72', 'Scenario:': '#ffa657', 'Scenario Outline:': '#ffa657',
+                            'Given ': '#79c0ff', 'When ': '#79c0ff', 'Then ': '#7ee787',
+                            'And ': '#7ee787', 'But ': '#f85149', 'Examples:': '#d2a8ff',
+                          }
+                          const matched = kw ? Object.keys(colors).find(k => line.trimStart().startsWith(k)) : null
+                          return (
+                            <span key={i} className="block">
+                              {matched
+                                ? <><span style={{ color: colors[matched] }}>{line.slice(0, line.indexOf(matched.trimEnd()) + matched.trimEnd().length)}{matched.endsWith(' ') ? ' ' : ''}</span><span>{line.slice(line.indexOf(matched.trimEnd()) + matched.trimEnd().length + (matched.endsWith(' ') ? 1 : 0))}</span></>
+                                : line
+                              }
+                            </span>
+                          )
+                        })}
+                      </pre>
+                    </div>
+                  ) : tc.steps.length > 0 && (
                     <div>
                       <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>Steps</p>
                       <div className="space-y-1.5">

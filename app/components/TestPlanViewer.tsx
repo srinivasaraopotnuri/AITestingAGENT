@@ -143,14 +143,25 @@ export default function TestPlanViewer({ testPlan, ticketId, generatedAt }: Prop
   )
 }
 
-function normalizeContent(raw: string): string {
-  return raw
+function normalizeContent(raw: unknown): string {
+  // LLM sometimes returns arrays or objects instead of strings
+  let str: string
+  if (typeof raw === 'string') {
+    str = raw
+  } else if (Array.isArray(raw)) {
+    str = raw.map(item => (typeof item === 'string' ? item : JSON.stringify(item))).join('\n')
+  } else if (raw == null) {
+    str = ''
+  } else {
+    str = JSON.stringify(raw, null, 2)
+  }
+  return str
     .replace(/\s+(\d+)\.\s+/g, (_, n) => `\n${n}. `)
     .replace(/\s+[-•]\s+/g, '\n• ')
     .trim()
 }
 
-function FormattedContent({ content }: { content: string }) {
+function FormattedContent({ content }: { content: unknown }) {
   const normalized = normalizeContent(content)
   const lines = normalized.split('\n').filter(l => l.trim() !== '')
 
