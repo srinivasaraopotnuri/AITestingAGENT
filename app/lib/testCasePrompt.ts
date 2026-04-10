@@ -15,20 +15,41 @@ export function buildTestCasePrompt(
   const ctx       = source === 'ticket' ? additionalContext             : manualInput?.additionalContext
   const ticketId  = source === 'ticket' ? (ticketFields?.ticketId || 'MANUAL') : 'MANUAL'
 
-  return `You are a senior QA engineer. Generate ${count} detailed test cases in Gherkin BDD format for the following feature.
+  return `=== RICE ===
 
-TICKET / FEATURE ID: ${ticketId}
-TITLE: ${title || 'Not provided'}
+ROLE:
+You are a Senior QA Engineer with 10+ years of experience in test design, BDD, and Gherkin specification writing. You specialize in identifying edge cases others miss and writing test cases that are immediately executable.
 
-USER STORY / DESCRIPTION:
+INTENT:
+I need to generate ${count} comprehensive, independently executable test cases to ensure complete coverage of the feature described below — covering happy paths, negative scenarios, boundary values, and edge cases — before release.
+
+CONTEXT:
+- Ticket / Feature ID: ${ticketId}
+- Title: ${title || 'Not provided'}
+- User Story / Description:
 ${story || 'Not provided'}
-
-ACCEPTANCE CRITERIA:
+- Acceptance Criteria:
 ${ac || 'Not provided'}
+${ctx ? `- Additional Context:\n${ctx}` : ''}
 
-${ctx ? `ADDITIONAL CONTEXT:\n${ctx}` : ''}
+EXPECTED OUTPUT:
+- Exactly ${count} test cases in the "cases" array
+- Coverage must include: Functional (happy path), Negative, Edge Case, Boundary, and at least 1 Security or Integration test
+- Each test case must have 3–8 concrete steps with realistic test data — no placeholder values
+- Each test case must include a complete Gherkin BDD scenario (Given/When/Then)
+- 3–5 AI suggestions identifying gaps, missing scenarios, or risks not covered
 
-Return a valid JSON object with exactly this shape (no markdown fences, no extra text):
+=== POT ===
+
+PARAMETERS:
+- Use ONLY the information provided above — do NOT assume undocumented features
+- Mark any unclear requirements as "[NOT SPECIFIED]" rather than guessing
+- No hallucinations — every step and expected result must be derivable from the context
+- All status values must be "Draft"
+- IDs must be sequential: TC-001, TC-002, …
+
+OUTPUT FORMAT:
+Return a valid JSON object with exactly this shape. No markdown fences, no extra text outside the JSON:
 {
   "cases": [
     {
@@ -39,7 +60,7 @@ Return a valid JSON object with exactly this shape (no markdown fences, no extra
       "status": "Draft",
       "tags": ["string"],
       "preconditions": "string",
-      "testData": "string",
+      "testData": "string (realistic values, not placeholders)",
       "steps": [
         { "stepNumber": 1, "action": "string", "expectedResult": "string" }
       ],
@@ -59,18 +80,12 @@ Return a valid JSON object with exactly this shape (no markdown fences, no extra
   ]
 }
 
-Rules:
-- Generate exactly ${count} test cases in the "cases" array
-- Spread types: include Functional, Negative, Edge Case, and at minimum 1 Boundary test
-- Each test case must have 3–8 detailed steps with concrete actions and expected results
-- The "gherkin" field must be a complete Gherkin scenario using Feature/Scenario/Given/When/Then/And/But keywords. Use \\n for line breaks. Each step on its own line with 4-space indent.
-- Use "Scenario Outline" with "Examples:" table for data-driven cases where appropriate
-- testData must contain realistic sample values, not placeholders
-- Generate 3–5 AI suggestions in the "suggestions" array for missing scenarios, edge cases, or gaps
-- IDs must be sequential: TC-001, TC-002, …
-- Be specific to the feature — no generic filler text
-- All status values must be "Draft"
-- Return ONLY the JSON object`
+TASK:
+Generate ${count} test cases for the feature described in CONTEXT above.
+- The "gherkin" field must be a complete Gherkin scenario using Feature/Scenario/Given/When/Then/And/But keywords. Use \\n for line breaks. Indent each step with 4 spaces.
+- Use "Scenario Outline" with an "Examples:" table for data-driven cases where appropriate.
+- Spread coverage across types — do not generate only Functional tests.
+- Return ONLY the JSON object.`
 }
 
 // ── AI Suggestions (standalone, for expanding an existing set) ─────────────────
